@@ -1,20 +1,23 @@
 package edu.eci.arep.Apps;
 
+import edu.eci.arep.Component;
 
-
-
-
-import edu.eci.arep.Cache;
-import edu.eci.arep.HttpConection;
+import edu.eci.arep.RequestMapping;
 import edu.eci.arep.Services.RESTService;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,17 +32,46 @@ public class HttpServer {
      * @throws IOException
      */
 
-    private static HttpServer _instance = new HttpServer(); // la carga el class loader
-    private static Map<String, RESTService> services = new HashMap();
+    private static HttpServer _instance = new HttpServer();
+    //private static Map<String, RESTService> services = new HashMap();
     private HttpServer() {};
     static HttpServer getInstance(){return _instance;}
+
+
+
+
+
+    private Map<String, Method> ServiceHash = new HashMap<>();
 
     //
     public  void run(String[] args) throws IOException {
         boolean running = true;
+        ArrayList<String> Anotations = myAnnotation();
+
+
+        for (String className : Anotations) {
+            Class<?> c;
+            try {
+                c = Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+            Method[] myMethods = c.getMethods();
+
+            for (Method m : myMethods) {
+                if (m.isAnnotationPresent(RequestMapping.class)) {
+                    RequestMapping annotation = m.getAnnotation(RequestMapping.class);
+                    String file = annotation.value();
+                    ServiceHash.put(file,m);
+                }
+            }
+
+        }
+
+
         ServerSocket serverSocket = null;
-        String cacheData = "";
-        String path = " ";
+
+        String namepath = " ";
 
 
 
@@ -68,30 +100,21 @@ public class HttpServer {
             while ((inputLine = in.readLine()) != null) {
                 if (firstLine){
                     firstLine = false;
-                    path = inputLine.split(" ")[1];
+                    namepath = inputLine.split(" ")[1];
                 }
                 System.out.println("Received: " + inputLine);
                 if (!in.ready()) {break;}
             }
-            URL urlprincipal = new URL("http://www.localhost:35000" + path);
-            String pathForm = urlprincipal.getQuery();
-                if (pathForm != null) {
-                    if (Cache.containCache(pathForm)){
-                        cacheData = Cache.getCache(pathForm);
-                    } else {
-                        cacheData = HttpConection.HttpConectionExample(pathForm);
-                        Cache.saveCache(pathForm, cacheData);
-                    }
+            outputLine ="";
+            if (ServiceHash.containsKey(namepath)) {
+                Method method = ServiceHash.get(namepath);
+                try {
+                    outputLine = htmlHeader()  + method.invoke(null);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-
-            System.out.println(cacheData);
-            //outputLine = "HTTP/1.1 200 OK\r\n"   + "\r\n" + htmlWithForms(cacheData); // jsonSimple
-
-            if (urlprincipal.getPath().contains("/apps/")) { // localhost:35000/apps/hello
-                outputLine = executeService(urlprincipal.getPath().substring(5)); // /apps/hello toma solo hello
-            } else {
-                outputLine = "HTTP/1.1 200 OK\r\n"   + "\r\n" + htmlWithForms(cacheData);
             }
+
 
 
             out.println(outputLine);
@@ -106,56 +129,43 @@ public class HttpServer {
 
     }
 
-    //
-    public String executeService(String serviceName) {
-        RESTService rs= services.get(serviceName);
-        String header = rs.getHeader();
-        String body = rs.getResponse(); // lectura de disco al body
-        return header + body;
-    }
+
 
     //
     public void addService(String key, RESTService service){
-        services.put(key, service);
+        //services.put(key, service);
     }
 
 
+    //se encarga de buscar archivos Java con anotaciones de tipo Component
+    private ArrayList<String> myAnnotation() {
+        Path path = Paths.get("src/main/java/edu/eci/arep");
+        DirectoryStream<Path> paths = null;
+        ArrayList<String> filesList = new ArrayList<>();
 
+        try {
+            paths = Files.newDirectoryStream(path);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        for (Path file: paths) {
+            if(Files.isRegularFile(file) && file.toString().contains(".java")) {
 
-    public static String htmlWithForms(String cacheData){
+                String fileName = file.toString().split("\\.")[0].replace("\\", ".").substring(14);
+                try {
+                    if(Class.forName(fileName).isAnnotationPresent(Component.class)){
+                        filesList .add(fileName);
+                    }
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
 
-        return "<!DOCTYPE html>\n" +
-                "<html>\n" +
-                "    <head>\n" +
-                "        <title>Form Example</title>\n" +
-                "        <meta charset=\"UTF-8\">\n" +
-                "        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
-                "    </head>\n" +
-                "    <body style=\"background-color:lightsteelblue;\">\n" +
-                "        <h1>Consultar Peliculas </h1>\n" +
-                "        <form action=\"localhost:35000\" onsubmit=\"return false\" >\n" +
-                "            <label for=\"t\">Name:</label><br>\n" +
-                "            <input type=\"text\" id=\"t\" name=\"t\" value=\"pelicula\"><br><br>\n" +
-                "            <input type=\"button\" value=\"Submit\" onclick=\"loadGetMsg()\">\n" +
-                "        </form> \n" +
-                "        <div  id=\"getrespmsg\"> " + cacheData + "</div>\n" +
-                "\n" +
-                "        <script>\n" +
-                "            function loadGetMsg() {\n" +
-                "                let nameVar = document.getElementById(\"t\").value;\n" +
-                "                const xhttp = new XMLHttpRequest();\n" +
-                "                xhttp.onload = function() {\n" +
-                "                    document.getElementById(\"getrespmsg\").innerHTML =\n" +
-                "                    this.responseText;\n" + "console.log(this.responseText);" +
-                "                }\n" +
-                "                xhttp.open(\"GET\", \"/?t=\"+nameVar);\n" +
-                "                xhttp.send();\n" +
-                "            }\n" +
-                "        </script>\n" +
-                "\n" +
-                "    </body>\n" +
-                "</html>";
-
+            }
+        }
+        return  filesList;
     }
+
+    //
+    public static String htmlHeader(){return "HTTP/1.1 200 OK \r\n" + "Content-Type: text/html \r\n" + "\r\n";}
 
 }

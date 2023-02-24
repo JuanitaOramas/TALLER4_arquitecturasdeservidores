@@ -1,8 +1,8 @@
-# Taller 2: Aplicaciones distribuidas
+# Taller 4: 
  
-## TALLER DISEÑO Y ESTRUCTURACIÓN DE APLICACIONES DISTRIBUIDAS EN INTERNET
+## TALLER DE ARQUITECTURAS DE SERVIDORES DE APLICACIONES, META PROTOCOLOS DE OBJETOS, PATRÓN IOC, REFLEXIÓN
 
-Servidor web que soporte múltiples solicitudes seguidas (no concurrentes). El servidor debe leer los archivos del disco local y retornar todos los archivos solicitados, incluyendo páginas html, archivos java script, css e imágenes. Construya una aplicación web con  javascript, css, e imágenes para probar su servidor. Incluya en la aplicación la comunicación asíncrona con unos servicios REST en el backend. NO use frameworks web como Spark o Spring, use solo Java y las librerías para manejo de la red.
+
 ## Authors
 
 **Maria Juanita Oramas Bermudez**
@@ -12,7 +12,7 @@ Servidor web que soporte múltiples solicitudes seguidas (no concurrentes). El s
 ### Instrucciones de uso
 Para poder usar el proyecto lo primero que debe realizar es clonar este repositorio utilizando el siguiente comando desde la terminal del SO que este utilizando:
 ```
-git clone https://github.com/JuanitaOramas/AREP_TALLER2.git
+git clone https://github.com/JuanitaOramas/TALLER4_arquitecturasdeservidores.git
 ```
 Luego debe redirigirse por medio de la terminal al directorio raíz la cual contiene el achivo pom.xml.
 
